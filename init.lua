@@ -93,6 +93,29 @@ function api:GetPlayerXP(player_id)
 	end
 end
 
+function api:GetPlayerCompanion(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerXP: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerCompanion() self.players == nil")
+		return false
+	end
+
+--	if self.players[steamid] ~= nil then
+--		return CustomNetTables:GetTableValue("battlepass", "companions")["1"]["5"]
+--		return CustomNetTables:GetTableValue("battlepass", "companions")["1"][tostring(self.players[steamid].companion_id)]
+--	else
+--		native_print("api:GetPlayerCompanion: api players steamid not valid!")
+		return false
+--	end
+end
+
 function api:GetApiGameId()
 	return self.game_id
 end
@@ -276,6 +299,14 @@ function api:RegisterGame(callback)
 		players = self:GetAllPlayerSteamIds(),
 		cheat_mode = self:IsCheatGame(),
 	});
+
+	self:Request("companions", function(data)
+		if callback ~= nil then
+			callback()
+		end
+
+		CustomNetTables:SetTableValue("battlepass", "companions", {data})
+	end);
 end
 
 function api:CompleteGame(successCallback, failCallback)
