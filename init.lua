@@ -107,13 +107,56 @@ function api:GetPlayerCompanion(player_id)
 		return false
 	end
 
---	if self.players[steamid] ~= nil then
---		return CustomNetTables:GetTableValue("battlepass", "companions")["1"]["5"]
---		return CustomNetTables:GetTableValue("battlepass", "companions")["1"][tostring(self.players[steamid].companion_id)]
---	else
---		native_print("api:GetPlayerCompanion: api players steamid not valid!")
+	if self.players[steamid] ~= nil then
+		return CustomNetTables:GetTableValue("battlepass", "companions")["1"][tostring(self.players[steamid].companion_id)]
+	else
+		native_print("api:GetPlayerCompanion: api players steamid not valid!")
 		return false
---	end
+	end
+end
+
+function api:GetPlayerTagEnabled(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerTagEnabled: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerTagEnabled() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["in_game_tag"]
+	else
+		native_print("api:GetPlayerCompanion: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPlayerBPRewardsEnabled(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerBPRewardsEnabled: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerBPRewardsEnabled() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["bp_rewards"]
+	else
+		native_print("api:GetPlayerBPRewardsEnabled: api players steamid not valid!")
+		return false
+	end
 end
 
 function api:GetApiGameId()
@@ -290,6 +333,7 @@ function api:RegisterGame(callback)
 	self:Request("game-register", function(data)
 		api.game_id = data.game_id
 		api.players = data.players
+		print(data.players)
 		if callback ~= nil then
 			callback()
 		end
@@ -305,7 +349,12 @@ function api:RegisterGame(callback)
 			callback()
 		end
 
-		CustomNetTables:SetTableValue("battlepass", "companions", {data})
+		local companions = {}
+		for k, v in pairs(data) do
+			table.insert(companions, data[k]["id"], data[k]["file"])
+		end
+
+		CustomNetTables:SetTableValue("battlepass", "companions", {companions})
 	end);
 end
 
