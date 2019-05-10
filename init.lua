@@ -159,6 +159,28 @@ function api:GetPlayerBPRewardsEnabled(player_id)
 	end
 end
 
+function api:GetPlayerXPEnabled(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerXPEnabled: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerXPEnabled() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["player_xp"]
+	else
+		native_print("api:GetPlayerXPEnabled: api players steamid not valid!")
+		return false
+	end
+end
+
 function api:GetApiGameId()
 	return self.game_id
 end
