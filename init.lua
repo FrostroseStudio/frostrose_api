@@ -355,7 +355,9 @@ function api:RegisterGame(callback)
 	self:Request("game-register", function(data)
 		api.game_id = data.game_id
 		api.players = data.players
-		print(data.players)
+		if IsInToolsMode() then
+			print(data.players)
+		end
 		if callback ~= nil then
 			callback()
 		end
