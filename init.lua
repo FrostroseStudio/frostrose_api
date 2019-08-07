@@ -52,22 +52,15 @@ function api:GetDonatorStatus(player_id)
 end
 
 function api:InitDonatorTableJS()
-	local developers = {}
 	local donators = {}
 
 	for i = 0, PlayerResource:GetPlayerCount() - 1 do
-		local donator_status = api:GetDonatorStatus(i)
-		if donator_status ~= 0 then
-			if donator_status <= 2 then
-				table.insert(developers, tostring(PlayerResource:GetSteamID(i)))
-			end
-			if donator_status <= 9 then
-				table.insert(donators, tostring(PlayerResource:GetSteamID(i)))
-			end
+		local donator_status = self:GetDonatorStatus(i)
+		if donator_status ~= 0 and donator_status ~= 10 then
+			donators[PlayerResource:GetSteamID(i)] = donator_status
 		end
 	end
 
-	CustomNetTables:SetTableValue("game_options", "developers", developers)
 	CustomNetTables:SetTableValue("game_options", "donators", donators)
 end
 
@@ -95,7 +88,7 @@ end
 
 function api:GetPlayerCompanion(player_id)
 	if not PlayerResource:IsValidPlayerID(player_id) then
-		native_print("api:GetPlayerXP: Player ID not valid!")
+		native_print("api:GetPlayerCompanion: Player ID not valid!")
 		return false
 	end
 
@@ -112,6 +105,54 @@ function api:GetPlayerCompanion(player_id)
 	else
 		native_print("api:GetPlayerCompanion: api players steamid not valid!")
 		return false
+	end
+end
+
+function api:GetPlayerStatue(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerStatue: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerStatue() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return CustomNetTables:GetTableValue("battlepass", "statues")["1"][tostring(self.players[steamid].statue_id)]
+	else
+		native_print("api:GetPlayerStatue: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPlayerEmblem(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerEmblem: Player ID not valid!")
+		return ""
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerEmblem() self.players == nil")
+		return ""
+	end
+
+	if self.players[steamid] ~= nil then
+		if type(self.players[steamid].emblem_id) == "number" then
+			return CustomNetTables:GetTableValue("battlepass", "emblems")["1"][tostring(self.players[steamid].emblem_id)].file
+		else
+			return ""
+		end
+	else
+		native_print("api:GetPlayerEmblem: api players steamid not valid!")
+		return ""
 	end
 end
 
@@ -348,7 +389,7 @@ function api:Request(endpoint, okCallback, failCallback, method, payload)
 				return fail("Wtf")
 			end
 		end
-	end);
+	end)
 end
 
 function api:RegisterGame(callback)
@@ -368,18 +409,27 @@ function api:RegisterGame(callback)
 		cheat_mode = self:IsCheatGame(),
 	});
 
-	self:Request("companions", function(data)
-		if callback ~= nil then
-			callback()
-		end
+	local cool_hat = {}
+	local cool_hats = {
+		"companions",
+		"statues",
+		"emblems"
+	}
 
-		local companions = {}
-		for k, v in pairs(data) do
-			table.insert(companions, data[k]["id"], data[k]["file"])
-		end
+	for i, j in pairs(cool_hats) do
+		self:Request(j, function(data)
+			if callback ~= nil then
+				callback()
+			end
 
-		CustomNetTables:SetTableValue("battlepass", "companions", {companions})
-	end);
+			cool_hat[j] = {}
+			for k, v in pairs(data) do
+				table.insert(cool_hat[j], data[k]["id"], data[k])
+			end
+
+			CustomNetTables:SetTableValue("battlepass", j, {cool_hat[j]})
+		end)
+	end
 end
 
 function api:CompleteGame(successCallback, failCallback)
