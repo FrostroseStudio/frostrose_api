@@ -4,13 +4,19 @@
 api = class({});
 
 local baseUrl = "http://api.dota2imba.fr/imba/"
+local websiteUrl = "http://api.dota2imba.fr/website/"
 local timeout = 5000
 
 local native_print = print
 
 -- Utils
 function api:GetUrl(endpoint)
-	return baseUrl .. endpoint
+	if endpoint == "statistics/ranking/xp" or endpoint == "statistics/ranking/winrate" then
+		baseUrl = websiteUrl
+	end
+
+	print("URL:", baseUrl .. endpoint)
+	return baseUrl..endpoint
 end
 
 function api:IsDonator(player_id)
@@ -218,6 +224,72 @@ function api:GetPlayerXPEnabled(player_id)
 		return self.players[steamid]["player_xp"]
 	else
 		native_print("api:GetPlayerXPEnabled: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPlayerWinrateShown(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerWinrateShown: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerWinrateShown() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["winrate_toggle"]
+	else
+		native_print("api:GetPlayerWinrateShown: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPlayerWinrate(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerWinrate: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerWinrate() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["winrate_"..string.gsub(GetMapName(), "imba_", "")]
+	else
+		native_print("api:GetPlayerWinrate: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPhantomAssassinArcanaKills(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPhantomAssassinArcanaKills: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPhantomAssassinArcanaKills() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["pa_arcana_kills"]
+	else
+		native_print("api:GetPhantomAssassinArcanaKills: api players steamid not valid!")
 		return false
 	end
 end
@@ -432,6 +504,28 @@ function api:RegisterGame(callback)
 	end
 end
 
+function api:IterateWinrateOrdering(callback)
+	self:Request("360-noscope", function(data)
+		-- What does the api returns (data.smth)
+
+--		api.game_id = data.game_id
+--		api.players = data.players
+		if IsInToolsMode() then
+			print(data)
+		end
+		if callback ~= nil then
+			callback()
+		end
+	end, nil, "POST", {
+		-- What parameters do you need? GET
+
+--		map = GetMapName(),
+--		match_id = self:GetMatchID(),
+--		players = self:GetAllPlayerSteamIds(),
+--		cheat_mode = self:IsCheatGame(),
+	});
+end
+
 function api:CompleteGame(successCallback, failCallback)
 	local players = {}
 
@@ -492,6 +586,32 @@ function api:CompleteGame(successCallback, failCallback)
 			successCallback(data, payload);
 		end
 	end, failCallback, "POST", payload);
+end
+
+function api:ExperienceLeaderboard(callback)
+	self:Request("statistics/ranking/xp", function(data)
+		if callback ~= nil then
+			callback(data)
+		end
+	end, nil, "POST", nil);
+end
+
+function api:WinrateLeaderboard(callback)
+	self:Request("statistics/ranking/winrate", function(data)
+		if callback ~= nil then
+			callback(data)
+		end
+	end, nil, "POST", nil);
+end
+
+function api:DiretideHallOfFame(callback)
+	self:Request("diretide-score", function(data)
+		if callback ~= nil then
+			callback(data)
+		end
+	end, nil, "POST", {
+		map = GetMapName(),
+	});
 end
 
 require("components/api/events")
