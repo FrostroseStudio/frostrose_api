@@ -3,8 +3,8 @@
 
 api = class({});
 
-local baseUrl = "http://api.dota2imba.fr/imba/"
-local websiteUrl = "http://api.dota2imba.fr/website/"
+local baseUrl = "http://api.frostrose-studio.com/imba/"
+local websiteUrl = "http://api.frostrose-studio.com/website/"
 local timeout = 5000
 
 local native_print = print
@@ -15,7 +15,6 @@ function api:GetUrl(endpoint)
 		baseUrl = websiteUrl
 	end
 
-	print("URL:", baseUrl .. endpoint)
 	return baseUrl..endpoint
 end
 
@@ -378,7 +377,6 @@ end
 
 -- Core
 function api:Request(endpoint, okCallback, failCallback, method, payload)
-
 	if okCallback == nil then
 		okCallback = function()
 		end
@@ -496,6 +494,13 @@ function api:RegisterGame(callback)
 
 			cool_hat[j] = {}
 			for k, v in pairs(data) do
+
+				-- temporary fix
+				if data[k]["file"] == '""' then
+					print("fix whitespace", cool_hats[j])
+					data[k]["file"] = "particles/dev/empty_particle.vpcf"
+				end
+
 				table.insert(cool_hat[j], data[k]["id"], data[k])
 			end
 
@@ -508,20 +513,17 @@ function api:IterateWinrateOrdering(callback)
 	self:Request("360-noscope", function(data)
 		-- What does the api returns (data.smth)
 
---		api.game_id = data.game_id
---		api.players = data.players
 		if IsInToolsMode() then
 			print(data)
 		end
+
 		if callback ~= nil then
 			callback()
 		end
 	end, nil, "POST", {
-		-- What parameters do you need? GET
-
 --		map = GetMapName(),
 --		match_id = self:GetMatchID(),
---		players = self:GetAllPlayerSteamIds(),
+		players = self:GetAllPlayerSteamIds(),
 --		cheat_mode = self:IsCheatGame(),
 	});
 end
@@ -572,6 +574,18 @@ function api:CompleteGame(successCallback, failCallback)
 		winnerTeam = json.null
 	end
 
+	local rosh_lvl
+	local rosh_hp
+	local rosh_max_hp
+
+	if api:IsCheatGame() == false and GameMode:GetCustomGamemode() == 4 then
+		rosh_lvl = ROSHAN_ENT:GetLevel()
+		rosh_hp = ROSHAN_ENT:GetHealth()
+		rosh_max_hp = ROSHAN_ENT:GetMaxHealth()
+	end
+
+	print(rosh_lvl, rosh_hp, rosh_max_hp)
+
 	local payload = {
 		winner = winnerTeam,
 		game_id = self.game_id,
@@ -579,6 +593,9 @@ function api:CompleteGame(successCallback, failCallback)
 		radiant_score = self:GetKillsForTeam(2),
 		dire_score = self:GetKillsForTeam(3),
 		game_time = GameRules:GetDOTATime(false, false),
+		rosh_lvl = rosh_lvl,
+		rosh_hp = rosh_hp,
+		rosh_max_hp = rosh_max_hp,
 	}
 
 	self:Request("game-complete", function(data)
@@ -588,28 +605,12 @@ function api:CompleteGame(successCallback, failCallback)
 	end, failCallback, "POST", payload);
 end
 
-function api:ExperienceLeaderboard(callback)
-	self:Request("statistics/ranking/xp", function(data)
-		if callback ~= nil then
-			callback(data)
-		end
-	end, nil, "POST", nil);
-end
-
-function api:WinrateLeaderboard(callback)
-	self:Request("statistics/ranking/winrate", function(data)
-		if callback ~= nil then
-			callback(data)
-		end
-	end, nil, "POST", nil);
-end
-
-function api:DiretideHallOfFame(callback)
+function api:DiretideHallOfFame(successCallback, failCallback)
 	self:Request("diretide-score", function(data)
-		if callback ~= nil then
-			callback(data)
+		if successCallback ~= nil then
+			successCallback(data)
 		end
-	end, nil, "POST", {
+	end, failCallback, "POST", {
 		map = GetMapName(),
 	});
 end
