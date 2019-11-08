@@ -494,38 +494,12 @@ function api:RegisterGame(callback)
 
 			cool_hat[j] = {}
 			for k, v in pairs(data) do
-
-				-- temporary fix
-				if data[k]["file"] == '""' then
-					print("fix whitespace", cool_hats[j])
-					data[k]["file"] = "particles/dev/empty_particle.vpcf"
-				end
-
 				table.insert(cool_hat[j], data[k]["id"], data[k])
 			end
 
 			CustomNetTables:SetTableValue("battlepass", j, {cool_hat[j]})
 		end)
 	end
-end
-
-function api:IterateWinrateOrdering(callback)
-	self:Request("360-noscope", function(data)
-		-- What does the api returns (data.smth)
-
-		if IsInToolsMode() then
-			print(data)
-		end
-
-		if callback ~= nil then
-			callback()
-		end
-	end, nil, "POST", {
---		map = GetMapName(),
---		match_id = self:GetMatchID(),
-		players = self:GetAllPlayerSteamIds(),
---		cheat_mode = self:IsCheatGame(),
-	});
 end
 
 function api:CompleteGame(successCallback, failCallback)
@@ -578,10 +552,14 @@ function api:CompleteGame(successCallback, failCallback)
 	local rosh_hp
 	local rosh_max_hp
 
-	if api:IsCheatGame() == false and GameMode:GetCustomGamemode() == 4 then
-		rosh_lvl = ROSHAN_ENT:GetLevel()
-		rosh_hp = ROSHAN_ENT:GetHealth()
-		rosh_max_hp = ROSHAN_ENT:GetMaxHealth()
+	if CUSTOM_GAME_TYPE == "IMBA" then
+		print("Cheat game?", api:IsCheatGame(), GameMode:GetCustomGamemode() == 4)
+
+		if api:IsCheatGame() == false and GameMode:GetCustomGamemode() == 4 then
+			rosh_lvl = ROSHAN_ENT:GetLevel()
+			rosh_hp = ROSHAN_ENT:GetHealth()
+			rosh_max_hp = ROSHAN_ENT:GetMaxHealth()
+		end
 	end
 
 	print(rosh_lvl, rosh_hp, rosh_max_hp)
