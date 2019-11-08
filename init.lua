@@ -593,4 +593,23 @@ function api:DiretideHallOfFame(successCallback, failCallback)
 	});
 end
 
+function api:SetCustomGamemode(iValue)
+	if iValue and type(iValue) == "number" then
+		BATTLE_ROYALE_MUTATION["positive"] = BATTLE_ROYALE_MUTATION_LIST[iValue]
+		CustomNetTables:SetTableValue("game_options", "mutation", {BATTLE_ROYALE_MUTATION_LIST[iValue]})
+	end
+
+	return nil
+end
+
+function api:GetCustomGamemode()
+--	print("Gamemode:", CustomNetTables:GetTableValue("game_options", "gamemode")["1"])
+	local gamemode = CustomNetTables:GetTableValue("game_options", "gamemode")
+	if gamemode then
+		return CustomNetTables:GetTableValue("game_options", "gamemode")["1"]
+	else
+		return nil
+	end
+end
+
 require("components/api/events")
