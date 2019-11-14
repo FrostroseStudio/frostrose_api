@@ -348,6 +348,7 @@ function api:GetLoggingConfiguration(callback)
 end
 
 function api:Message(message, _type)
+	if not message or message == '' then return end
 
 	_type = _type or 1
 	local data = json.null
@@ -553,16 +554,16 @@ function api:CompleteGame(successCallback, failCallback)
 	local rosh_max_hp
 
 	if CUSTOM_GAME_TYPE == "IMBA" then
-		print("Cheat game?", api:IsCheatGame(), GameMode:GetCustomGamemode() == 4)
+		print("Cheat game?", api:IsCheatGame(), api:GetCustomGamemode() == 4)
 
-		if api:IsCheatGame() == false and GameMode:GetCustomGamemode() == 4 then
+		if api:IsCheatGame() == false and api:GetCustomGamemode() == 4 then
 			rosh_lvl = ROSHAN_ENT:GetLevel()
 			rosh_hp = ROSHAN_ENT:GetHealth()
 			rosh_max_hp = ROSHAN_ENT:GetMaxHealth()
 		end
 	end
 
-	print(rosh_lvl, rosh_hp, rosh_max_hp)
+--	print(rosh_lvl, rosh_hp, rosh_max_hp)
 
 	local payload = {
 		winner = winnerTeam,
@@ -571,6 +572,8 @@ function api:CompleteGame(successCallback, failCallback)
 		radiant_score = self:GetKillsForTeam(2),
 		dire_score = self:GetKillsForTeam(3),
 		game_time = GameRules:GetDOTATime(false, false),
+		game_type = CUSTOM_GAME_TYPE,
+		gamemode = api:GetCustomGamemode(),
 		rosh_lvl = rosh_lvl,
 		rosh_hp = rosh_hp,
 		rosh_max_hp = rosh_max_hp,
@@ -593,23 +596,24 @@ function api:DiretideHallOfFame(successCallback, failCallback)
 	});
 end
 
+
 function api:SetCustomGamemode(iValue)
 	if iValue and type(iValue) == "number" then
-		BATTLE_ROYALE_MUTATION["positive"] = BATTLE_ROYALE_MUTATION_LIST[iValue]
-		CustomNetTables:SetTableValue("game_options", "mutation", {BATTLE_ROYALE_MUTATION_LIST[iValue]})
+		CustomNetTables:SetTableValue("game_options", "gamemode", {iValue})
 	end
 
 	return nil
 end
 
 function api:GetCustomGamemode()
---	print("Gamemode:", CustomNetTables:GetTableValue("game_options", "gamemode")["1"])
 	local gamemode = CustomNetTables:GetTableValue("game_options", "gamemode")
+
 	if gamemode then
-		return CustomNetTables:GetTableValue("game_options", "gamemode")["1"]
-	else
-		return nil
+		gamemode = gamemode["1"]
 	end
+
+	return gamemode
 end
+
 
 require("components/api/events")
