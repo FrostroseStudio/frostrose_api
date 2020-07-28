@@ -1,7 +1,9 @@
--- Copyright (C) 2018  The Dota IMBA Development Team
--- Api Interface for Dota IMBA
+-- Copyright (C) 2020 - Frostrose Studio Development Team
+-- Api Interface for every custom games managed/created by Frostrose Studio
 
 api = class({});
+
+api.disabled_heroes = {}
 
 local baseUrl = "http://api.frostrose-studio.com/imba/"
 local websiteUrl = "http://api.frostrose-studio.com/website/"
@@ -19,7 +21,7 @@ function api:GetUrl(endpoint)
 end
 
 function api:IsDonator(player_id)
-	if self:GetDonatorStatus(player_id) ~= 0 then
+	if self:GetDonatorStatus(player_id) ~= 0 and self:GetDonatorStatus(player_id) ~= 10 then
 		return true
 	else
 		return false
@@ -105,8 +107,9 @@ function api:GetPlayerCompanion(player_id)
 		return false
 	end
 
-	if self.players[steamid] ~= nil then
-		return CustomNetTables:GetTableValue("battlepass", "companions")["1"][tostring(self.players[steamid].companion_id)]
+	local ply_table = CustomNetTables:GetTableValue("battlepass_player", "companions")
+	if self.players[steamid] ~= nil and ply_table and ply_table["1"] and ply_table["1"][tostring(self.players[steamid].companion_id)] then
+		return ply_table["1"][tostring(self.players[steamid].companion_id)]
 	else
 		native_print("api:GetPlayerCompanion: api players steamid not valid!")
 		return false
@@ -128,7 +131,7 @@ function api:GetPlayerStatue(player_id)
 	end
 
 	if self.players[steamid] ~= nil then
-		return CustomNetTables:GetTableValue("battlepass", "statues")["1"][tostring(self.players[steamid].statue_id)]
+		return CustomNetTables:GetTableValue("battlepass_player", "statues")["1"][tostring(self.players[steamid].statue_id)]
 	else
 		native_print("api:GetPlayerStatue: api players steamid not valid!")
 		return false
@@ -150,8 +153,8 @@ function api:GetPlayerEmblem(player_id)
 	end
 
 	if self.players[steamid] ~= nil then
-		if type(self.players[steamid].emblem_id) == "number" then
-			return CustomNetTables:GetTableValue("battlepass", "emblems")["1"][tostring(self.players[steamid].emblem_id)].file
+		if type(self.players[steamid].emblem_id) == "number" and CustomNetTables:GetTableValue("battlepass_player", "emblems") then
+			return CustomNetTables:GetTableValue("battlepass_player", "emblems")["1"][tostring(self.players[steamid].emblem_id)].file
 		else
 			return ""
 		end
@@ -271,9 +274,9 @@ function api:GetPlayerWinrate(player_id)
 	end
 end
 
-function api:GetPhantomAssassinArcanaKills(player_id)
+function api:GetPlayerMMR(player_id)
 	if not PlayerResource:IsValidPlayerID(player_id) then
-		native_print("api:GetPhantomAssassinArcanaKills: Player ID not valid!")
+		native_print("api:GetPlayerMMR: Player ID not valid!")
 		return false
 	end
 
@@ -281,16 +284,97 @@ function api:GetPhantomAssassinArcanaKills(player_id)
 
 	-- if the game isnt registered yet, we have no way to know player xp
 	if self.players == nil then
-		native_print("api:GetPhantomAssassinArcanaKills() self.players == nil")
+		native_print("api:GetPlayerMMR() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["mmr_value"]
+	else
+		native_print("api:GetPlayerMMR: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPlayerRankMMR(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerMMR: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerMMR() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["mmr_title"]
+	else
+		native_print("api:GetPlayerMMR: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPhantomAssassinArcanaKills(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+--		native_print("api:GetPhantomAssassinArcanaKills: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+--		native_print("api:GetPhantomAssassinArcanaKills() self.players == nil")
 		return false
 	end
 
 	if self.players[steamid] ~= nil then
 		return self.players[steamid]["pa_arcana_kills"]
 	else
-		native_print("api:GetPhantomAssassinArcanaKills: api players steamid not valid!")
+--		native_print("api:GetPhantomAssassinArcanaKills: api players steamid not valid!")
 		return false
 	end
+end
+
+function api:GetArmory(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+--		native_print("api:GetArmory: Player ID not valid!")
+		return {}
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know if the player is a donator
+	if self.players == nil then
+		return {}
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid].armory
+	else
+--		native_print("api:GetArmory: api players steamid not valid!")
+		return {}
+	end
+end
+
+function api:GetDisabledHeroes()
+	self:Request("disabled-heroes", function(data)
+		local disabled_heroes = {}
+
+		for k, v in pairs(data) do
+			if v.map == GetMapName() then
+				disabled_heroes[v.hero_name] = v.is_disabled
+			end
+		end
+
+		api.disabled_heroes = disabled_heroes
+	end, nil, "POST", {
+		map = GetMapName(),
+	});
 end
 
 function api:GetApiGameId()
@@ -300,7 +384,7 @@ end
 function api:CheatDetector()
 	if CustomNetTables:GetTableValue("game_options", "game_count").value == 1 then
 		if Convars:GetBool("sv_cheats") == true or GameRules:IsCheatMode() then
-			if not IsInToolsMode() then
+			if not IsInToolsMode() and log then
 				log.info("Cheats have been enabled, game don't count.")
 				CustomNetTables:SetTableValue("game_options", "game_count", {value = 0})
 				CustomGameEventManager:Send_ServerToAllClients("safe_to_leave", {})
@@ -361,11 +445,13 @@ function api:Message(message, _type)
 	end
 
 	local status, err = xpcall(function ()
+--[[
 		api:Request("game-event", nil, nil, "POST", {
 			type = _type,
 			game_id = api.game_id or 0,
 			message = data
 		})
+--]]
 	end , function(err)
 
 		if err == nil then
@@ -405,7 +491,7 @@ function api:Request(endpoint, okCallback, failCallback, method, payload)
 
 	if IsDedicatedServer() then
 		header_key = GetDedicatedServerKeyV2("2")
-	else
+	elseif LoadKeyValues("scripts/vscripts/components/api/backend_key.kv") then
 		header_key = LoadKeyValues("scripts/vscripts/components/api/backend_key.kv").server_key
 	end
 
@@ -471,7 +557,7 @@ function api:RegisterGame(callback)
 			print(data.players)
 		end
 		if callback ~= nil then
-			callback()
+			callback(data)
 		end
 	end, nil, "POST", {
 		map = GetMapName(),
@@ -489,18 +575,17 @@ function api:RegisterGame(callback)
 
 	for i, j in pairs(cool_hats) do
 		self:Request(j, function(data)
-			if callback ~= nil then
-				callback()
-			end
-
 			cool_hat[j] = {}
 			for k, v in pairs(data) do
 				table.insert(cool_hat[j], data[k]["id"], data[k])
 			end
 
-			CustomNetTables:SetTableValue("battlepass", j, {cool_hat[j]})
+			CustomNetTables:SetTableValue("battlepass_player", j, {cool_hat[j]})
 		end)
 	end
+
+	print("ALL PLAYERS LOADED IN!")
+	CustomGameEventManager:Send_ServerToAllClients("all_players_loaded", {})
 end
 
 function api:CompleteGame(successCallback, failCallback)
@@ -511,6 +596,13 @@ function api:CompleteGame(successCallback, failCallback)
 			local items = {}
 			local heroEntity = PlayerResource:GetSelectedHeroEntity(id)
 			local hero = json.null
+			local networth = 0
+			local healing = PlayerResource:GetHealing(id)
+			local damage_done_to_heroes = 0
+			local damage_done_to_buildings = 0
+			local kills_done_to_hero = {}
+			local items_bought = PlayerResource:GetItemsBought(id)
+			local abandon = PlayerResource:GetHasAbandonedDueToLongDisconnect(id)
 
 			if heroEntity ~= nil then
 				hero = tostring(heroEntity:GetUnitName())
@@ -521,6 +613,26 @@ function api:CompleteGame(successCallback, failCallback)
 						table.insert(items, tostring(item:GetAbilityName()))
 					end
 				end
+
+				networth = heroEntity:GetNetworth()
+			end
+
+			for i = 0, PlayerResource:GetPlayerCount() - 1 do
+				damage_done_to_heroes = damage_done_to_heroes + PlayerResource:GetDamageDoneToHero(id, i)
+				kills_done_to_hero[i] = PlayerResource:GetKillsDoneToHero(id, i)
+			end
+
+			if IsInToolsMode() and id == 0 then
+--				print("CompleteGame: Items:", items)
+--				print("CompleteGame: Items Bought:", items_bought)
+--				print("CompleteGame: Support Items Bought:", PlayerResource:GetSupportItemsBought(id, items_bought))
+--				print("CompleteGame: Abilities Level Up Order:", PlayerResource:GetAbilitiesLevelUpOrder(id))
+			end
+
+			local increment_pa_arcana_kills = false
+
+			if hero and hero == "npc_dota_hero_phantom_assassin" and Battlepass and Battlepass:HasArcana(id, "phantom_assassin") then
+				increment_pa_arcana_kills = true
 			end
 
 			local player = {
@@ -531,13 +643,27 @@ function api:CompleteGame(successCallback, failCallback)
 				level = tonumber(PlayerResource:GetLevel(id)),
 				hero = hero,
 				team = tonumber(PlayerResource:GetTeam(id)),
-				items = items
+				items = items,
+				networth = networth,
+				healing = healing,
+				damage_done_to_heroes = damage_done_to_heroes,
+				damage_done_to_buildings = damage_done_to_buildings,
+				kills_done_to_hero = kills_done_to_hero,
+				items_bought = items_bought,
+				support_items = PlayerResource:GetSupportItemsBought(id, items_bought),
+				gold_spent_on_support = PlayerResource:GetGoldSpentOnSupport(id),
+				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id),
+				increment_pa_arcana_kills = increment_pa_arcana_kills,
+				pa_arcana_kills = api:GetPhantomAssassinArcanaKills(id),
+				abandon = abandon,
 			}
 
 			local steamid = tostring(PlayerResource:GetSteamID(id))
 
 			if steamid == 0 then
 				steamid = tostring(id)
+			else
+
 			end
 
 			players[steamid] = player
@@ -615,5 +741,21 @@ function api:GetCustomGamemode()
 	return gamemode
 end
 
+function api:SendTeamConfiguration(players, combinations, callback)
+	local data = {
+		players = players,
+		team_combinations = combinations,
+		map = GetMapName(),
+	}
+
+	print(players)
+	print(team_combinations)
+
+	self:Request("teambalance", function(data)
+		if callback ~= nil then
+			callback(data)
+		end
+	end, nil, "POST", data)
+end
 
 require("components/api/events")

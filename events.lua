@@ -1,7 +1,22 @@
-ListenToGameEvent('game_rules_state_change', function(keys)
+ListenToGameEvent('game_rules_state_change', function()
 	if GameRules:State_Get() == DOTA_GAMERULES_STATE_CUSTOM_GAME_SETUP then
 		CustomNetTables:SetTableValue("game_options", "game_count", {value = 1})
-		api:RegisterGame()
+
+		api:RegisterGame(function(data)
+			for k, v in pairs(data.players) do
+				local payload = {
+					steamid = tostring(k),
+				}
+
+				api:Request("armory", function(data)
+					if api.players[k] then
+						api.players[k]["armory"] = data
+					end
+				end, nil, "POST", payload);
+			end
+		end)
+
+		api:GetDisabledHeroes()
 	elseif GameRules:State_Get() == DOTA_GAMERULES_STATE_PRE_GAME then
 		api:InitDonatorTableJS()
 
@@ -36,6 +51,8 @@ ListenToGameEvent('game_rules_state_change', function(keys)
 		end
 
 		api:CompleteGame(function(data, payload)
+			print(data)
+			print(payload)
 			CustomGameEventManager:Send_ServerToAllClients("end_game", {
 				players = payload.players,
 				data = data,
@@ -50,3 +67,22 @@ ListenToGameEvent('game_rules_state_change', function(keys)
 		end)
 	end
 end, nil)
+
+ListenToGameEvent('dota_item_purchased', function(event)
+	-- itemcost, itemname, PlayerID, splitscreenplayer
+
+	if CUSTOM_GAME_TYPE == "IMBA" then
+		PlayerResource:StoreItemBought(event.PlayerID, event.itemname)
+	end
+
+--	if not PlayerResource.ItemTimer then PlayerResource.ItemTimer = {} end
+
+--	PlayerResource.ItemTimer = Timers:CreateTimer(10.0, CheckIfItemSold(event))
+end, nil)
+
+-- creepy way to check if an item was sold and fully refund
+function CheckIfItemSold(event)
+	if PlayerResource:GetSelectedHeroEntity(event.PlayerID):HasItemInInventory(event.itemname) then
+		PlayerResource:StoreItemBought(event.PlayerID, event.itemname)
+	end
+end
