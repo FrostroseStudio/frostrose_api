@@ -5,8 +5,8 @@ api = class({});
 
 api.disabled_heroes = {}
 
-local baseUrl = "http://api.frostrose-studio.com/imba/"
-local websiteUrl = "http://api.frostrose-studio.com/website/"
+local baseUrl = "https://api.frostrose-studio.com/imba/"
+local websiteUrl = "https://api.frostrose-studio.com/website/"
 local timeout = 5000
 
 local native_print = print
@@ -30,7 +30,7 @@ end
 
 function api:IsDeveloper(player_id)
 	local status = self:GetDonatorStatus(player_id);
-	if status == 1 or status == 2 or status == 3 then
+	if status == 1 or status == 2 then
 		return true
 	else
 		return false
@@ -108,6 +108,7 @@ function api:GetPlayerCompanion(player_id)
 	end
 
 	local ply_table = CustomNetTables:GetTableValue("battlepass_player", "companions")
+
 	if self.players[steamid] ~= nil and ply_table and ply_table["1"] and ply_table["1"][tostring(self.players[steamid].companion_id)] then
 		return ply_table["1"][tostring(self.players[steamid].companion_id)]
 	else
@@ -584,8 +585,9 @@ function api:RegisterGame(callback)
 		end)
 	end
 
-	print("ALL PLAYERS LOADED IN!")
-	CustomGameEventManager:Send_ServerToAllClients("all_players_loaded", {})
+	-- call in BP scripts after battlepass_player is set to show mmr medal in loading screen
+--	print("ALL PLAYERS LOADED IN!")
+--	CustomGameEventManager:Send_ServerToAllClients("all_players_loaded", {})
 end
 
 function api:CompleteGame(successCallback, failCallback)
@@ -755,6 +757,50 @@ function api:SendTeamConfiguration(players, combinations, callback)
 		if callback ~= nil then
 			callback(data)
 		end
+	end, nil, "POST", data)
+end
+
+-- Credits: darklord (Dota 12v12)
+function api:DetectParties()
+	self.parties = {}
+	local party_indicies = {}
+	local party_index = 1
+	local players = {}
+
+	-- Set up player colors
+	for id = 0, 23 do
+		if PlayerResource:IsValidPlayer(id) then
+			players[id] = tostring(PlayerResource:GetSteamID(id))
+
+			-- {"0":26703929098108930,"1":26703929098108930}
+			local party_id = tonumber(tostring(PlayerResource:GetPartyID(id)))
+
+			if party_id and party_id > 0 then
+				if not party_indicies[party_id] then
+					party_indicies[party_id] = party_index
+					party_index = party_index + 1
+				end
+
+				self.parties[id] = party_indicies[party_id]
+			end
+		end
+	end
+
+	local data = {
+		players = players,
+		parties = api.parties,
+		map = GetMapName(),
+	}
+
+	print(players)
+	print(api.parties)
+
+	self:Request("teambalance", function(data)
+		if callback ~= nil then
+			callback(data)
+		end
+
+		print(data)
 	end, nil, "POST", data)
 end
 
