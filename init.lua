@@ -426,7 +426,7 @@ function api:GetAllPlayerSteamIds()
 end
 
 function api:GetMatchID()
-	return tostring(GameRules:GetMatchID())
+	return tostring(GameRules:Script_GetMatchID())
 end
 
 function api:GetLoggingConfiguration(callback)
@@ -555,13 +555,18 @@ function api:RegisterGame(callback)
 	self:Request("game-register", function(data)
 		api.game_id = data.game_id
 		api.players = data.players
+
 		if IsInToolsMode() then
 			print(data.players)
 		end
+
 		if callback ~= nil then
 			callback(data)
 		end
-	end, nil, "POST", {
+	end, function()
+		-- fail-safe if http request can't reach backend
+		GameRules:SetCustomGameSetupRemainingTime(10.0)
+	end, "POST", {
 		map = GetMapName(),
 		match_id = self:GetMatchID(),
 		players = self:GetAllPlayerSteamIds(),
@@ -801,14 +806,6 @@ function api:DetectParties()
 
 	print(players)
 	print(api.parties)
-
-	self:Request("teambalance", function(data)
-		if callback ~= nil then
-			callback(data)
-		end
-
-		print(data)
-	end, nil, "POST", data)
 end
 
 require("components/api/events")

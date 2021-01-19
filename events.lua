@@ -56,8 +56,8 @@ ListenToGameEvent('game_rules_state_change', function()
 		end
 
 		api:CompleteGame(function(data, payload)
-			print(data)
-			print(payload)
+--			print(data)
+--			print(payload)
 			CustomGameEventManager:Send_ServerToAllClients("end_game", {
 				players = payload.players,
 				data = data,
