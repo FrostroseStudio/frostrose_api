@@ -94,6 +94,28 @@ function api:GetPlayerXP(player_id)
 	end
 end
 
+function api:GetPlayerXPLevel(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerXP: Player ID not valid!")
+		return 0
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerXP() self.players == nil")
+		return 0
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid].xp_level
+	else
+		native_print("api:GetPlayerXP: api players steamid not valid!")
+		return 0
+	end
+end
+
 function api:GetPlayerCompanion(player_id)
 	if not PlayerResource:IsValidPlayerID(player_id) then
 		native_print("api:GetPlayerCompanion: Player ID not valid!")
@@ -342,6 +364,28 @@ function api:GetPhantomAssassinArcanaKills(player_id)
 	end
 end
 
+function api:GetPlayerSeasonalWinrate(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerSeasonalWinrate: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerSeasonalWinrate() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["seasonal_winrate"]
+	else
+		native_print("api:GetPlayerSeasonalWinrate: api players steamid not valid!")
+		return false
+	end
+end
+
 function api:GetArmory(player_id)
 	if not PlayerResource:IsValidPlayerID(player_id) then
 --		native_print("api:GetArmory: Player ID not valid!")
@@ -565,7 +609,7 @@ function api:RegisterGame(callback)
 		end
 	end, function()
 		-- fail-safe if http request can't reach backend
-		GameRules:SetCustomGameSetupRemainingTime(10.0)
+		GameRules:SetCustomGameSetupRemainingTime(5.0)
 	end, "POST", {
 		map = GetMapName(),
 		match_id = self:GetMatchID(),
@@ -732,9 +776,12 @@ end
 
 
 function api:SetCustomGamemode(iValue)
-	if iValue and type(iValue) == "number" or type(iValue) == "string" then
-		if type(iValue) == "number" then iValue = tostring(iValue) end
-		CustomNetTables:SetTableValue("game_options", "gamemode", {iValue})
+	if iValue and type(iValue) == "number" then
+		GameRules:SetCustomGameDifficulty(iValue)
+		CustomNetTables:SetTableValue("game_options", "gamemode", {tostring(iValue)})
+	else
+		print("ERROR: Value should be a number, not string.")
+		api:SetCustomGamemode(tonumber(iValue))
 	end
 
 	return nil
