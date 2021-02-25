@@ -4,6 +4,7 @@ ListenToGameEvent('game_rules_state_change', function()
 		CustomNetTables:SetTableValue("game_options", "game_count", {value = 1})
 
 		api:RegisterGame(function(data)
+			print("Register game...")
 			for k, v in pairs(data.players) do
 				local payload = {
 					steamid = tostring(k),
@@ -15,9 +16,22 @@ ListenToGameEvent('game_rules_state_change', function()
 					end
 				end, nil, "POST", payload);
 			end
+
+			if CUSTOM_GAME_TYPE == "IMBA" then
+				GameRules:GetGameModeEntity():SetContextThink(DoUniqueString("anti_stacks_fucker"), function()
+					TeamOrdering:OnPlayersLoaded()
+
+					return nil
+				end, 3.0)
+			end
+
+			print("ALL PLAYERS LOADED IN!")
+			CustomGameEventManager:Send_ServerToAllClients("all_players_battlepass_loaded", {})
 		end)
 
 		api:GetDisabledHeroes()
+
+		CustomGameEventManager:Send_ServerToAllClients("all_players_loaded", {})
 	elseif GameRules:State_Get() == DOTA_GAMERULES_STATE_PRE_GAME then
 		api:InitDonatorTableJS()
 

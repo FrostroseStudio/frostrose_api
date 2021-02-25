@@ -609,7 +609,7 @@ function api:RegisterGame(callback)
 		end
 	end, function()
 		-- fail-safe if http request can't reach backend
-		GameRules:SetCustomGameSetupRemainingTime(5.0)
+		GameRules:SetCustomGameSetupRemainingTime(10.0)
 	end, "POST", {
 		map = GetMapName(),
 		match_id = self:GetMatchID(),
@@ -640,8 +640,10 @@ function api:RegisterGame(callback)
 --	CustomGameEventManager:Send_ServerToAllClients("all_players_loaded", {})
 end
 
-function api:CompleteGame(successCallback, failCallback)
+function api:CompleteGame(successCallback)
 	local players = {}
+
+	print("Complete Game!")
 
 	for id = 0, PlayerResource:GetPlayerCount() - 1 do
 		if PlayerResource:IsValidPlayerID(id) then
@@ -759,9 +761,15 @@ function api:CompleteGame(successCallback, failCallback)
 
 	self:Request("game-complete", function(data)
 		if successCallback ~= nil then
-			successCallback(data, payload);
+			successCallback(data, payload)
 		end
-	end, failCallback, "POST", payload);
+	end,
+
+	function(data)
+		if successCallback ~= nil then
+			successCallback(data, payload)
+		end
+	end, "POST", payload);
 end
 
 function api:DiretideHallOfFame(successCallback, failCallback)
