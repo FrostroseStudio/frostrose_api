@@ -116,76 +116,82 @@ function api:GetPlayerXPLevel(player_id)
 	end
 end
 
-function api:GetPlayerCompanion(player_id)
+-- companion, statue, emblem only, wearable cosmetics handled in api:GetArmory()
+function api:GetPlayerCosmetics(player_id, cosmetic_type)
 	if not PlayerResource:IsValidPlayerID(player_id) then
-		native_print("api:GetPlayerCompanion: Player ID not valid!")
+		native_print("api:GetPlayerCosmetics: Player ID not valid!")
 		return false
 	end
 
-	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+	if not cosmetic_type then
+		native_print("api:GetPlayerCosmetics: cosmetic_type not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id))
 
 	-- if the game isnt registered yet, we have no way to know player xp
 	if self.players == nil then
-		native_print("api:GetPlayerCompanion() self.players == nil")
+		native_print("api:GetPlayerCosmetics() self.players == nil")
 		return false
 	end
 
-	local ply_table = CustomNetTables:GetTableValue("battlepass_player", "companions")
+	if self.players[steamid] == nil then
+		native_print("api:GetPlayerCosmetics: api players steamid not valid!")
+		return false
+	end
 
-	if self.players[steamid] ~= nil and ply_table and ply_table["1"] and ply_table["1"][tostring(self.players[steamid].companion_id)] then
-		return ply_table["1"][tostring(self.players[steamid].companion_id)]
+	local cosmetic = CustomNetTables:GetTableValue("battlepass_player", cosmetic_type)
+	if cosmetic and cosmetic["1"] then cosmetic = cosmetic["1"] end
+	local cosmetic_variable = nil
+
+	if cosmetic_type == "companions" then
+		cosmetic_variable = "companion_id"
+	elseif cosmetic_type == "statues" then
+		cosmetic_variable = "statue_id"
+	elseif cosmetic_type == "emblems" then
+		cosmetic_variable = "emblem_id"
+	end
+
+	if cosmetic_variable == nil then
+		print("api:GetPlayerCosmetics: invalid cosmetic variable for cosmetic type:", cosmetic_type)
+		return false
+	end
+
+	local cosmetic_id = self.players[steamid][cosmetic_variable]
+
+	if cosmetic_id == nil then
+		native_print("api:GetPlayerCosmetics: Unable to get "..cosmetic_variable.." player table!")
+		return false
+	end
+
+	cosmetic = cosmetic[tostring(self.players[steamid][cosmetic_variable])]["file"]
+
+	if cosmetic and cosmetic ~= "" and type(cosmetic) == "string" then
+		return cosmetic
 	else
-		native_print("api:GetPlayerCompanion: api players steamid not valid!")
+		native_print("api:GetPlayerCosmetics: Invalid cosmetic for "..cosmetic_type.."")
+
+		if type(cosmetic) == "table" then
+			PrintTable(cosmetic)
+		else
+			native_print(cosmetic)
+		end
+
 		return false
 	end
+end
+
+function api:GetPlayerCompanion(player_id)
+	return self:GetPlayerCosmetics(player_id, "companions")
 end
 
 function api:GetPlayerStatue(player_id)
-	if not PlayerResource:IsValidPlayerID(player_id) then
-		native_print("api:GetPlayerStatue: Player ID not valid!")
-		return false
-	end
-
-	local steamid = tostring(PlayerResource:GetSteamID(player_id));
-
-	-- if the game isnt registered yet, we have no way to know player xp
-	if self.players == nil then
-		native_print("api:GetPlayerStatue() self.players == nil")
-		return false
-	end
-
-	if self.players[steamid] ~= nil then
-		return CustomNetTables:GetTableValue("battlepass_player", "statues")["1"][tostring(self.players[steamid].statue_id)]
-	else
-		native_print("api:GetPlayerStatue: api players steamid not valid!")
-		return false
-	end
+	return self:GetPlayerCosmetics(player_id, "statues")
 end
 
 function api:GetPlayerEmblem(player_id)
-	if not PlayerResource:IsValidPlayerID(player_id) then
-		native_print("api:GetPlayerEmblem: Player ID not valid!")
-		return ""
-	end
-
-	local steamid = tostring(PlayerResource:GetSteamID(player_id));
-
-	-- if the game isnt registered yet, we have no way to know player xp
-	if self.players == nil then
-		native_print("api:GetPlayerEmblem() self.players == nil")
-		return ""
-	end
-
-	if self.players[steamid] ~= nil then
-		if type(self.players[steamid].emblem_id) == "number" and CustomNetTables:GetTableValue("battlepass_player", "emblems") then
-			return CustomNetTables:GetTableValue("battlepass_player", "emblems")["1"][tostring(self.players[steamid].emblem_id)].file
-		else
-			return ""
-		end
-	else
-		native_print("api:GetPlayerEmblem: api players steamid not valid!")
-		return ""
-	end
+	return self:GetPlayerCosmetics(player_id, "emblems")
 end
 
 function api:GetPlayerTagEnabled(player_id)
@@ -205,7 +211,7 @@ function api:GetPlayerTagEnabled(player_id)
 	if self.players[steamid] ~= nil then
 		return self.players[steamid]["in_game_tag"]
 	else
-		native_print("api:GetPlayerCompanion: api players steamid not valid!")
+		native_print("api:GetPlayerTagEnabled: api players steamid not valid!")
 		return false
 	end
 end
@@ -292,6 +298,28 @@ function api:GetPlayerWinrate(player_id)
 
 	if self.players[steamid] ~= nil then
 		return self.players[steamid]["winrate_"..string.gsub(GetMapName(), "imba_", "")]
+	else
+		native_print("api:GetPlayerWinrate: api players steamid not valid!")
+		return false
+	end
+end
+
+function api:GetPlayerSeasonalWinrate(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+		native_print("api:GetPlayerWinrate: Player ID not valid!")
+		return false
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know player xp
+	if self.players == nil then
+		native_print("api:GetPlayerWinrate() self.players == nil")
+		return false
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid]["seasonal_winrate"]
 	else
 		native_print("api:GetPlayerWinrate: api players steamid not valid!")
 		return false
@@ -491,13 +519,11 @@ function api:Message(message, _type)
 	end
 
 	local status, err = xpcall(function ()
---[[
 		api:Request("game-event", nil, nil, "POST", {
 			type = _type,
 			game_id = api.game_id or 0,
 			message = data
 		})
---]]
 	end , function(err)
 
 		if err == nil then
@@ -805,23 +831,6 @@ function api:GetCustomGamemode()
 	return tonumber(gamemode)
 end
 
-function api:SendTeamConfiguration(players, combinations, callback)
-	local data = {
-		players = players,
-		team_combinations = combinations,
-		map = GetMapName(),
-	}
-
-	print(players)
-	print(team_combinations)
-
-	self:Request("teambalance", function(data)
-		if callback ~= nil then
-			callback(data)
-		end
-	end, nil, "POST", data)
-end
-
 -- Credits: darklord (Dota 12v12)
 function api:DetectParties()
 	self.parties = {}
@@ -853,14 +862,29 @@ function api:DetectParties()
 		end
 	end
 
-	local data = {
-		players = players,
-		parties = api.parties,
-		map = GetMapName(),
-	}
+	print("Parties:", api.parties)
+end
 
-	print(players)
-	print(api.parties)
+function api:FindPlayerParty(iPlayerID)
+	if not self.parties then
+		print("No party detected.")
+		return
+	end
+
+	for id, party in pairs(self.parties) do
+		if iPlayerID == id then
+			return party
+		end
+	end
+end
+
+function api:GetParties(iPlayerID)
+	if not self.parties then
+		print("No party detected.")
+		return
+	end
+
+	return self.parties
 end
 
 require("components/api/events")
