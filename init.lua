@@ -59,6 +59,49 @@ function api:GetDonatorStatus(player_id)
 	end
 end
 
+function api:GetPlayerIngameTag(player_id)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+--		native_print("api:GetPlayerIngameTag: Player ID not valid!")
+		return nil
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know if the player is a donator
+	if self.players == nil then
+		return nil
+	end
+
+	if self.players[steamid] ~= nil then
+		return self.players[steamid].ingame_tag
+	else
+		--		native_print("api:GetPlayerIngameTag: api players steamid not valid!")
+		return nil
+	end
+end
+
+function api:SetPlayerIngameTag(player_id, tag)
+	if not PlayerResource:IsValidPlayerID(player_id) then
+--		native_print("api:GetPlayerIngameTag: Player ID not valid!")
+		return nil
+	end
+
+	local steamid = tostring(PlayerResource:GetSteamID(player_id));
+
+	-- if the game isnt registered yet, we have no way to know if the player is a donator
+	if self.players == nil then
+		return nil
+	end
+
+	if self.players[steamid] ~= nil and self.players[steamid]["toggle_tag"] then
+		self.players[steamid].changed_tag_this_game = true
+		self.players[steamid].ingame_tag = tag
+	else
+		--		native_print("api:GetPlayerIngameTag: api players steamid not valid!")
+		return nil
+	end
+end
+
 function api:InitDonatorTableJS()
 	local donators = {}
 
@@ -209,7 +252,7 @@ function api:GetPlayerTagEnabled(player_id)
 	end
 
 	if self.players[steamid] ~= nil then
-		return self.players[steamid]["in_game_tag"]
+		return self.players[steamid]["toggle_tag"]
 	else
 		native_print("api:GetPlayerTagEnabled: api players steamid not valid!")
 		return false
@@ -471,6 +514,10 @@ function api:CheatDetector()
 end
 
 function api:IsCheatGame()
+	if IsInToolsMode() then
+		return false
+	end
+
 	if CustomNetTables:GetTableValue("game_options", "game_count").value == 0 then
 		return true
 	end
@@ -635,7 +682,7 @@ function api:RegisterGame(callback)
 		end
 	end, function()
 		-- fail-safe if http request can't reach backend
-		GameRules:SetCustomGameSetupRemainingTime(10.0)
+--		GameRules:SetCustomGameSetupRemainingTime(20.0)
 	end, "POST", {
 		map = GetMapName(),
 		match_id = self:GetMatchID(),
@@ -669,8 +716,6 @@ end
 function api:CompleteGame(successCallback)
 	local players = {}
 
-	print("Complete Game!")
-
 	for id = 0, PlayerResource:GetPlayerCount() - 1 do
 		if PlayerResource:IsValidPlayerID(id) then
 			local items = {}
@@ -681,8 +726,10 @@ function api:CompleteGame(successCallback)
 			local damage_done_to_heroes = 0
 			local damage_done_to_buildings = 0
 			local kills_done_to_hero = {}
-			local items_bought = PlayerResource:GetItemsBought(id)
-			local abandon = PlayerResource:GetHasAbandonedDueToLongDisconnect(id)
+--			local items_bought = PlayerResource:GetItemsBought(id)
+--			local abandon = PlayerResource:GetHasAbandonedDueToLongDisconnect(id)
+			local abandon = false
+			local leaderboard = {}
 
 			if heroEntity ~= nil then
 				hero = tostring(heroEntity:GetUnitName())
@@ -695,6 +742,11 @@ function api:CompleteGame(successCallback)
 				end
 
 				networth = heroEntity:GetNetworth()
+			end
+
+			for index, score in pairs(Rounds.player_score[id]) do
+				table.insert(leaderboard, index, score)
+--				table.insert(leaderboard, tonumber(index), score)
 			end
 
 			for i = 0, PlayerResource:GetPlayerCount() - 1 do
@@ -715,6 +767,8 @@ function api:CompleteGame(successCallback)
 				increment_pa_arcana_kills = true
 			end
 
+			print("Player Leaderboard:", leaderboard)
+
 			local player = {
 				id = id,
 				kills = tonumber(PlayerResource:GetKills(id)),
@@ -729,13 +783,14 @@ function api:CompleteGame(successCallback)
 				damage_done_to_heroes = damage_done_to_heroes,
 				damage_done_to_buildings = damage_done_to_buildings,
 				kills_done_to_hero = kills_done_to_hero,
-				items_bought = items_bought,
-				support_items = PlayerResource:GetSupportItemsBought(id, items_bought),
-				gold_spent_on_support = PlayerResource:GetGoldSpentOnSupport(id),
-				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id),
+--				items_bought = items_bought,
+--				support_items = PlayerResource:GetSupportItemsBought(id, items_bought),
+--				gold_spent_on_support = PlayerResource:GetGoldSpentOnSupport(id),
+--				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id),
 				increment_pa_arcana_kills = increment_pa_arcana_kills,
 				pa_arcana_kills = api:GetPhantomAssassinArcanaKills(id),
 				abandon = abandon,
+				leaderboard = leaderboard,
 			}
 
 			local steamid = tostring(PlayerResource:GetSteamID(id))
@@ -885,6 +940,49 @@ function api:GetParties(iPlayerID)
 	end
 
 	return self.parties
+end
+
+function api:GenerateGameModeLeaderboard()
+	local round_count = Rounds:GetRoundCount()
+--	print("Amount of rounds:", round_count)
+
+	self:GetGameModeLeaderboard(1, round_count)
+end
+
+function api:GetGameModeLeaderboard(iRound, iMaxRound)
+	if not self.pls_ranking then
+		self.pls_ranking = {}
+	end
+
+	print("Iterate round "..iRound.."...")
+
+	self:Request("pls_ranking", function(data)
+		self.pls_ranking[iRound] = data.players
+
+		if IsInToolsMode() then
+--			print("GameMode Leaderboard for round "..iRound..":", data.players)
+		end
+
+		print("Leaderboard round "..iRound..": success!")
+		iRound = iRound + 1
+
+		if iRound < iMaxRound + 1 then
+			self:GetGameModeLeaderboard(iRound, iMaxRound)
+		else
+			CustomNetTables:SetTableValue("game_options", "GameMode_leaderboard", self.pls_ranking)
+		end
+	end, function()
+		print("Leaderboard round "..iRound..": failure!!!")
+		iRound = iRound + 1
+
+		if iRound < iMaxRound + 1 then
+			self:GetGameModeLeaderboard(iRound, iMaxRound)
+		else
+			CustomNetTables:SetTableValue("game_options", "GameMode_leaderboard", self.pls_ranking)
+		end
+	end, "POST", {
+		round_range = iRound,
+	});
 end
 
 require("components/api/events")

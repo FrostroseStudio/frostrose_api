@@ -17,12 +17,17 @@ ListenToGameEvent('game_rules_state_change', function()
 				end, nil, "POST", payload);
 			end
 
+--[[
 			if CUSTOM_GAME_TYPE == "IMBA" then
 				GameRules:GetGameModeEntity():SetContextThink(DoUniqueString("anti_stacks_fucker"), function()
 					TeamOrdering:OnPlayersLoaded()
 
 					return nil
 				end, 3.0)
+			elseif CUSTOM_GAME_TYPE == "PLS" then
+--]]
+			if CUSTOM_GAME_TYPE == "PLS" then
+				api:GenerateGameModeLeaderboard()
 			end
 
 			print("ALL PLAYERS LOADED IN!")
@@ -30,6 +35,7 @@ ListenToGameEvent('game_rules_state_change', function()
 		end)
 
 		api:GetDisabledHeroes()
+
 
 		CustomGameEventManager:Send_ServerToAllClients("all_players_loaded", {})
 	elseif GameRules:State_Get() == DOTA_GAMERULES_STATE_PRE_GAME then
