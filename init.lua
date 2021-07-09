@@ -744,9 +744,11 @@ function api:CompleteGame(successCallback)
 				networth = heroEntity:GetNetworth()
 			end
 
-			for index, score in pairs(Rounds.player_score[id]) do
-				table.insert(leaderboard, index, score)
---				table.insert(leaderboard, tonumber(index), score)
+			if CUSTOM_GAME_TYPE == "PLS" then
+				for index, score in pairs(Rounds.player_score[id]) do
+					table.insert(leaderboard, index, score)
+--					table.insert(leaderboard, tonumber(index), score)
+				end
 			end
 
 			for i = 0, PlayerResource:GetPlayerCount() - 1 do
