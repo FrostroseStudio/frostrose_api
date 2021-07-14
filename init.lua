@@ -632,7 +632,7 @@ function api:Request(endpoint, okCallback, failCallback, method, payload)
 			if (code == nil) then
 				code = 0
 			end
-			native_print("Request to " .. endpoint .. " failed with message " .. message .. " (" .. tostring(code) .. ")")
+			print("Request to " .. endpoint .. " failed with message " .. message .. " (" .. tostring(code) .. ")")
 			failCallback();
 		end
 
@@ -726,10 +726,17 @@ function api:CompleteGame(successCallback)
 			local damage_done_to_heroes = 0
 			local damage_done_to_buildings = 0
 			local kills_done_to_hero = {}
---			local items_bought = PlayerResource:GetItemsBought(id)
---			local abandon = PlayerResource:GetHasAbandonedDueToLongDisconnect(id)
+			local items_bought = nil
 			local abandon = false
 			local leaderboard = {}
+
+			if PlayerResource.GetHasAbandonedDueToLongDisconnect then
+				abandon = PlayerResource:GetHasAbandonedDueToLongDisconnect(id)
+			end
+
+			if PlayerResource.GetItemsBought then
+				items_bought = PlayerResource:GetItemsBought(id)
+			end
 
 			if heroEntity ~= nil then
 				hero = tostring(heroEntity:GetUnitName())
@@ -744,9 +751,11 @@ function api:CompleteGame(successCallback)
 				networth = PlayerResource:GetNetWorth(id)
 			end
 
-			for index, score in pairs(Rounds.player_score[id]) do
-				table.insert(leaderboard, index, score)
---				table.insert(leaderboard, tonumber(index), score)
+			if CUSTOM_GAME_TYPE == "PLS" then
+				for index, score in pairs(Rounds.player_score[id]) do
+					table.insert(leaderboard, index, score)
+--					table.insert(leaderboard, tonumber(index), score)
+				end
 			end
 
 			for i = 0, PlayerResource:GetPlayerCount() - 1 do
@@ -754,12 +763,12 @@ function api:CompleteGame(successCallback)
 				kills_done_to_hero[i] = PlayerResource:GetKillsDoneToHero(id, i)
 			end
 
-			if IsInToolsMode() and id == 0 then
+--			if IsInToolsMode() and id == 0 then
 --				print("CompleteGame: Items:", items)
 --				print("CompleteGame: Items Bought:", items_bought)
 --				print("CompleteGame: Support Items Bought:", PlayerResource:GetSupportItemsBought(id, items_bought))
 --				print("CompleteGame: Abilities Level Up Order:", PlayerResource:GetAbilitiesLevelUpOrder(id))
-			end
+--			end
 
 			local increment_pa_arcana_kills = false
 
@@ -767,7 +776,7 @@ function api:CompleteGame(successCallback)
 				increment_pa_arcana_kills = true
 			end
 
-			print("Player Leaderboard:", leaderboard)
+--			print("Player Leaderboard:", leaderboard)
 
 			local player = {
 				id = id,
@@ -783,10 +792,10 @@ function api:CompleteGame(successCallback)
 				damage_done_to_heroes = damage_done_to_heroes,
 				damage_done_to_buildings = damage_done_to_buildings,
 				kills_done_to_hero = kills_done_to_hero,
---				items_bought = items_bought,
---				support_items = PlayerResource:GetSupportItemsBought(id, items_bought),
---				gold_spent_on_support = PlayerResource:GetGoldSpentOnSupport(id),
---				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id),
+				items_bought = items_bought,
+				support_items = PlayerResource:GetSupportItemsBought(id, items_bought),
+				gold_spent_on_support = PlayerResource:GetGoldSpentOnSupport(id),
+				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id),
 				increment_pa_arcana_kills = increment_pa_arcana_kills,
 				pa_arcana_kills = api:GetPhantomAssassinArcanaKills(id),
 				abandon = abandon,
