@@ -741,7 +741,7 @@ function api:CompleteGame(successCallback)
 					end
 				end
 
-				networth = heroEntity:GetNetworth()
+				networth = PlayerResource:GetNetWorth(id)
 			end
 
 			for index, score in pairs(Rounds.player_score[id]) do
