@@ -6,19 +6,31 @@ api = class({});
 api.disabled_heroes = {}
 api.disabled_heroes[1] = "npc_dota_hero_target_dummy"
 
-local baseUrl = "https://api.frostrose-studio.com/imba/"
-local websiteUrl = "https://api.frostrose-studio.com/website/"
+local baseUrl = "https://api.frostrose-studio.com/"
+local endUrlWebsite = "website/"
+local endUrlFrostrose = "imba/"
+local endUrlWarpath = "warpath/"
 local timeout = 5000
 
 local native_print = print
 
 -- Utils
 function api:GetUrl(endpoint)
+	local url = baseUrl
+
 	if endpoint == "statistics/ranking/xp" or endpoint == "statistics/ranking/winrate" then
-		baseUrl = websiteUrl
+		url = url..endUrlWebsite
+	else
+		if CUSTOM_GAME_TYPE == "WARPATH" then
+			url = url..endUrlWarpath
+		else
+			url = url..endUrlFrostrose
+		end
 	end
 
-	return baseUrl..endpoint
+	print("URL:", url..endpoint)
+
+	return url..endpoint
 end
 
 function api:IsDonator(player_id)
@@ -690,6 +702,8 @@ function api:RegisterGame(callback)
 		cheat_mode = self:IsCheatGame(),
 	});
 
+	if CUSTOM_GAME_TYPE == "WARPATH" then return end
+
 	local cool_hat = {}
 	local cool_hats = {
 		"companions",
@@ -729,6 +743,8 @@ function api:CompleteGame(successCallback)
 			local items_bought = nil
 			local abandon = false
 			local leaderboard = {}
+			local support_items = {}
+			local abilities_level_up_order = {}
 
 			if PlayerResource.GetHasAbandonedDueToLongDisconnect then
 				abandon = PlayerResource:GetHasAbandonedDueToLongDisconnect(id)
@@ -736,6 +752,14 @@ function api:CompleteGame(successCallback)
 
 			if PlayerResource.GetItemsBought then
 				items_bought = PlayerResource:GetItemsBought(id)
+			end
+
+			if PlayerResource.GetSupportItemsBought then
+				support_items = PlayerResource:GetSupportItemsBought(id, items_bought)
+			end
+
+			if PlayerResource.GetAbilitiesLevelUpOrder then
+				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id)
 			end
 
 			if heroEntity ~= nil then
@@ -782,7 +806,6 @@ function api:CompleteGame(successCallback)
 				id = id,
 				kills = tonumber(PlayerResource:GetKills(id)),
 				deaths = tonumber(PlayerResource:GetDeaths(id)),
-				assists = tonumber(PlayerResource:GetAssists(id)),
 				level = tonumber(PlayerResource:GetLevel(id)),
 				hero = hero,
 				team = tonumber(PlayerResource:GetTeam(id)),
@@ -793,14 +816,18 @@ function api:CompleteGame(successCallback)
 				damage_done_to_buildings = damage_done_to_buildings,
 				kills_done_to_hero = kills_done_to_hero,
 				items_bought = items_bought,
-				support_items = PlayerResource:GetSupportItemsBought(id, items_bought),
+				support_items = support_items,
 				gold_spent_on_support = PlayerResource:GetGoldSpentOnSupport(id),
-				abilities_level_up_order = PlayerResource:GetAbilitiesLevelUpOrder(id),
+				abilities_level_up_order = abilities_level_up_order,
 				increment_pa_arcana_kills = increment_pa_arcana_kills,
 				pa_arcana_kills = api:GetPhantomAssassinArcanaKills(id),
 				abandon = abandon,
 				leaderboard = leaderboard,
 			}
+
+			if CUSTOM_GAME_TYPE == "WARPATH" then
+				player.heroes = Warpath.selected_heroes[id] or {}
+			end
 
 			local steamid = tostring(PlayerResource:GetSteamID(id))
 

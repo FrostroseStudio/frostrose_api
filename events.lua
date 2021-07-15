@@ -10,11 +10,13 @@ ListenToGameEvent('game_rules_state_change', function()
 					steamid = tostring(k),
 				}
 
-				api:Request("armory", function(data)
-					if api.players[k] then
-						api.players[k]["armory"] = data
-					end
-				end, nil, "POST", payload);
+				if CUSTOM_GAME_TYPE ~= "WARPATH" then
+					api:Request("armory", function(data)
+						if api.players[k] then
+							api.players[k]["armory"] = data
+						end
+					end, nil, "POST", payload);
+				end
 			end
 
 --[[
